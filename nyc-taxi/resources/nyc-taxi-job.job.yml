@@ -1,0 +1,24 @@
+resources:
+  jobs:
+    setup:
+      name: nyc-taxi-job
+      queue:
+        enabled: true
+      tasks:
+        - task_key: setup
+          notebook_task:
+            notebook_path: .././src/HelloNYTaxi.py
+
+
+      # tasks:
+      #   - task_key: notebook_task
+      #     notebook_task:
+      #       notebook_path: ../path/to/notebook.ipynb
+      # email_notifications:
+      #   on_failure:
+      #     - karly.kussainova@gmail.com
+      # trigger:
+      #   # Run this job every day, exactly one day from the last run; see https://docs.databricks.com/api/workspace/jobs/create#trigger
+      #   periodic:
+      #     interval: 1
+      #     unit: DAYS

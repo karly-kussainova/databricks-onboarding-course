@@ -1,6 +1,6 @@
 # Databricks Asset Bundle configuration, more info here: https://docs.databricks.com/en/dev-tools/bundles/settings.html
 bundle:
-  name: "new-york-taxi"
+  name: "nyc-taxi"
 
 include:
   - resources/*.yml

@@ -1,4 +1,4 @@
-# new-york-taxi
+# nyc-taxi
 
 ## Getting Started
 
