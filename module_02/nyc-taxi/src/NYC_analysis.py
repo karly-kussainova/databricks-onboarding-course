@@ -43,8 +43,8 @@ print("-", GOLD)
 # 2. Read raw tables from the volumes
 base_path = f"/Volumes/{CATALOG}/{BRONZE_SCHEMA}/{VOLUME}"
 
-green_path  = f"{base_path}/green_tripdata_2015-05.parquet"
-yellow_path = f"{base_path}/yellow_tripdata_2009-01.parquet"
+green_path  = f"{base_path}/green_tripdata_2024-01.parquet"
+yellow_path = f"{base_path}/yellow_tripdata_2024-01.parquet"
 zones_path  = f"{base_path}/taxi_zone_lookup.csv"
 
 green_raw = spark.read.parquet(green_path)
@@ -58,6 +58,7 @@ print("-", zones_path)
 
 # COMMAND ----------
 
+# DBTITLE 1,Untitled
 # 3. Write Bronze managed Delta tables
 green_raw.write.mode("overwrite").saveAsTable(f"{BRONZE}.green_tripdata")
 yellow_raw.write.mode("overwrite").saveAsTable(f"{BRONZE}.yellow_tripdata")
@@ -130,17 +131,17 @@ yellow_silver = (
     yellow_raw
     .select(
         lit("yellow").alias("service_type"),
-        col("vendor_name").cast("string").alias("vendor_id"),
-        col("Trip_Pickup_DateTime").alias("pickup_ts"),
-        col("Trip_Dropoff_DateTime").alias("dropoff_ts"),
+        col("VendorID").alias("vendor_id"),
+        col("tpep_pickup_datetime").alias("pickup_ts"),
+        col("tpep_dropoff_datetime").alias("dropoff_ts"),
         lit(None).cast("int").alias("pickup_location_id"),   # not present in this file
         lit(None).cast("int").alias("dropoff_location_id"),  # not present in this file
         col("Passenger_Count").cast("int").alias("passenger_count"),
         col("Trip_Distance").cast("double").alias("trip_distance"),
-        col("Fare_Amt").cast("double").alias("fare_amount"),
-        col("Tip_Amt").cast("double").alias("tip_amount"),
-        col("Total_Amt").cast("double").alias("total_amount"),
-        col("Payment_Type").cast("string").alias("payment_type")
+        col("fare_amount").cast("double").alias("fare_amount"),
+        col("tip_amount").cast("double").alias("tip_amount"),
+        col("total_amount").cast("double").alias("total_amount"),
+        col("payment_type").cast("string").alias("payment_type")
     )
     .filter(col("pickup_ts").isNotNull())
     .filter(col("dropoff_ts").isNotNull())

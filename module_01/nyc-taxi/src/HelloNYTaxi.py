@@ -18,8 +18,8 @@ spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CATALOG}.{SCHEMA}")
 base_path = f"/Volumes/{CATALOG}/{SCHEMA}/{VOLUME}"
 
 # 2) Read the physical files from the Volume
-green_df = spark.read.parquet(f"{base_path}/green_tripdata_2015-05.parquet")
-yellow_df = spark.read.parquet(f"{base_path}/yellow_tripdata_2009-01.parquet")
+green_df = spark.read.parquet(f"{base_path}/green_tripdata_2024-01.parquet")
+yellow_df = spark.read.parquet(f"{base_path}/yellow_tripdata_2024-01.parquet")
 zones_df = spark.read.option("header", "true").csv(f"{base_path}/taxi_zone_lookup.csv")
 
 
