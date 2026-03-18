@@ -1,0 +1,411 @@
+version: 1.0.0
+kind: DataContract
+apiVersion: v3.1.0
+
+id: urn:datacontract:finance:finnhub_stock_company_profile
+name: Finnhub - Stock Company Profile Data Product
+status: active
+
+domain: finance
+tenant: CavalloTechnologiesInc
+tags:
+  - finance
+  - stocks
+  - api
+  - finnhub
+  - demo
+
+servers:
+  - server: dev
+    type: databricks
+    description: Free Databricks workspace used for POV and learning.
+    environment: dev
+    catalog: cavallo_test
+    host: https://dbc-50dd8b05-e012.cloud.databricks.com
+    schema: bronze
+
+description:
+  usage: >
+    This data product is intended for demo and learning purposes only.
+    It demonstrates the pattern for ingesting REST API data into a
+    Databricks medallion architecture using Unity Catalog HTTP connections.
+    The pattern is directly transferable to the OceanFirst CLEAR integration.
+  purpose: >
+    Provides structured company profile data for a list of Canadian bank
+    stocks sourced from the Finnhub S2S REST API. Covers bronze (raw JSON)
+    and gold (flattened, analyst-ready) layers.
+  limitations: >
+    Data is sourced from the free tier of the Finnhub API and is subject
+    to rate limits and availability. Not intended for production financial
+    analysis or trading decisions.
+  customProperties:
+    - property: billing
+      value: Finnhub free tier API
+    - property: noticePeriod
+      value: P1M
+
+schema:
+  - name: finnhub_stock_company_profile
+    physicalType: table
+    description: >
+      Bronze-layer table containing raw API responses from the Finnhub
+      stock company profile endpoint. Each row represents one API call
+      for one stock symbol. The api_response column stores the full
+      raw JSON string as returned by the API — no parsing is applied
+      at this layer.
+    customProperties:
+      - property: streaming
+        value: false
+      - property: sourceApi
+        value: Finnhub REST API - /api/v1/stock/profile2
+      - property: medallionLayer
+        value: bronze
+      - property: writeMode
+        value: append
+    properties:
+      - name: stock_symbol
+        businessName: Stock Ticker Symbol
+        physicalType: string
+        description: >
+          The stock ticker symbol submitted to the Finnhub API for this
+          company profile request. Used as the primary lookup key.
+        logicalType: string
+        required: true
+        unique: false
+        classification: public
+        customProperties:
+          - property: pii
+            value: 'False'
+        examples:
+          - RY
+          - TD
+          - BMO
+          - BNS
+          - CM
+        quality:
+          - description: Stock symbol must never be null
+            type: sql
+            mustBe: 0
+            query: |
+              SELECT COUNT(*) FROM cavallo_test.bronze.finnhub_stock_company_profile
+              WHERE stock_symbol IS NULL
+
+      - name: api_response
+        businessName: Raw API Response (JSON)
+        physicalType: string
+        description: >
+          The full raw JSON response body returned by the Finnhub API for
+          this stock symbol. Stored as a string at the bronze layer to
+          preserve the source data exactly as received. Downstream silver
+          and gold layers parse and flatten this field.
+        logicalType: string
+        required: true
+        unique: false
+        classification: public
+        customProperties:
+          - property: pii
+            value: 'False'
+          - property: format
+            value: JSON string
+        examples:
+          - >
+            {"country":"CA","currency":"CAD","exchange":"TORONTO STOCK EXCHANGE",
+            "finnhubIndustry":"Banking","ipo":"1905-06-17",
+            "marketCapitalization":313133.9,"name":"Royal Bank of Canada",
+            "ticker":"RY.TO","weburl":"https://www.rbcroyalbank.com/"}
+        quality:
+          - description: API response must be valid JSON
+            type: sql
+            mustBe: 0
+            query: |
+              SELECT COUNT(*) FROM cavallo_test.bronze.finnhub_stock_company_profile
+              WHERE try_parse_json(api_response) IS NULL
+
+      - name: api_call_timestamp
+        businessName: API Call Timestamp
+        physicalType: timestamp
+        description: >
+          The UTC timestamp at which the Finnhub API call was made and the
+          response was received. Used for tracking data freshness and
+          audit purposes.
+        logicalType: timestamp
+        required: true
+        unique: false
+        classification: public
+        customProperties:
+          - property: pii
+            value: 'False'
+        examples:
+          - '2026-03-17T22:06:06.871+00:00'
+        quality:
+          - description: Timestamp must never be null
+            type: sql
+            mustBe: 0
+            query: |
+              SELECT COUNT(*) FROM cavallo_test.bronze.finnhub_stock_company_profile
+              WHERE api_call_timestamp IS NULL
+
+  - name: finnhub_stock_company_profile_gold
+    physicalType: table
+    description: >
+      Gold-layer table containing flattened, structured company profile data
+      parsed from the bronze raw JSON responses. Each row represents the
+      most recent company profile for one stock symbol. Analyst-ready with
+      typed columns and business-friendly names.
+    customProperties:
+      - property: streaming
+        value: false
+      - property: sourceTable
+        value: cavallo_test.bronze.finnhub_stock_company_profile
+      - property: medallionLayer
+        value: gold
+      - property: writeMode
+        value: overwrite
+    properties:
+      - name: stock_symbol
+        businessName: Stock Ticker Symbol
+        physicalType: string
+        description: The stock ticker symbol. Primary key of this table.
+        logicalType: string
+        required: true
+        unique: true
+        classification: public
+        customProperties:
+          - property: pii
+            value: 'False'
+        examples:
+          - RY
+
+      - name: company_name
+        businessName: Company Name
+        physicalType: string
+        description: The full legal name of the company as returned by Finnhub.
+        logicalType: string
+        required: true
+        unique: false
+        classification: public
+        customProperties:
+          - property: pii
+            value: 'False'
+        examples:
+          - Royal Bank of Canada
+
+      - name: ticker
+        businessName: Exchange Ticker
+        physicalType: string
+        description: >
+          The ticker symbol used on the exchange where the stock is listed.
+          May differ from the input stock_symbol (e.g. RY vs RY.TO).
+        logicalType: string
+        required: false
+        unique: false
+        classification: public
+        customProperties:
+          - property: pii
+            value: 'False'
+        examples:
+          - RY.TO
+
+      - name: exchange
+        businessName: Stock Exchange
+        physicalType: string
+        description: The name of the stock exchange where the company is listed.
+        logicalType: string
+        required: false
+        unique: false
+        classification: public
+        customProperties:
+          - property: pii
+            value: 'False'
+        examples:
+          - TORONTO STOCK EXCHANGE
+
+      - name: country
+        businessName: Country of Incorporation
+        physicalType: string
+        description: Two-letter ISO country code for the country where the company is incorporated.
+        logicalType: string
+        required: false
+        unique: false
+        classification: public
+        customProperties:
+          - property: pii
+            value: 'False'
+        examples:
+          - CA
+
+      - name: currency
+        businessName: Trading Currency
+        physicalType: string
+        description: The currency in which the stock is traded.
+        logicalType: string
+        required: false
+        unique: false
+        classification: public
+        customProperties:
+          - property: pii
+            value: 'False'
+        examples:
+          - CAD
+
+      - name: industry
+        businessName: Finnhub Industry Classification
+        physicalType: string
+        description: The industry classification assigned by Finnhub for this company.
+        logicalType: string
+        required: false
+        unique: false
+        classification: public
+        customProperties:
+          - property: pii
+            value: 'False'
+        examples:
+          - Banking
+
+      - name: ipo_date
+        businessName: IPO Date
+        physicalType: date
+        description: The date the company first went public via IPO.
+        logicalType: date
+        required: false
+        unique: false
+        classification: public
+        customProperties:
+          - property: pii
+            value: 'False'
+        examples:
+          - '1905-06-17'
+
+      - name: market_capitalization
+        businessName: Market Capitalization (millions)
+        physicalType: double
+        description: >
+          The market capitalization of the company in millions of the trading
+          currency at the time of the API call.
+        logicalType: number
+        logicalTypeOptions:
+          minimum: 0
+        required: false
+        unique: false
+        classification: public
+        customProperties:
+          - property: pii
+            value: 'False'
+        examples:
+          - 313133.906823
+        quality:
+          - description: Market cap must be a positive number
+            type: sql
+            mustBe: 0
+            query: |
+              SELECT COUNT(*) FROM cavallo_test.gold.finnhub_stock_company_profile_gold
+              WHERE market_capitalization <= 0
+
+      - name: shares_outstanding
+        businessName: Shares Outstanding (millions)
+        physicalType: double
+        description: The number of shares outstanding in millions at the time of the API call.
+        logicalType: number
+        logicalTypeOptions:
+          minimum: 0
+        required: false
+        unique: false
+        classification: public
+        customProperties:
+          - property: pii
+            value: 'False'
+        examples:
+          - 1397.7
+
+      - name: phone
+        businessName: Company Phone Number
+        physicalType: string
+        description: The primary phone number for the company as listed in Finnhub.
+        logicalType: string
+        required: false
+        unique: false
+        classification: public
+        customProperties:
+          - property: pii
+            value: 'False'
+        examples:
+          - '12124379267'
+
+      - name: web_url
+        businessName: Company Website URL
+        physicalType: string
+        description: The URL of the company's official website as listed in Finnhub.
+        logicalType: string
+        required: false
+        unique: false
+        classification: public
+        customProperties:
+          - property: pii
+            value: 'False'
+        examples:
+          - https://www.rbcroyalbank.com/
+
+      - name: logo_url
+        businessName: Company Logo URL
+        physicalType: string
+        description: The URL of the company logo image hosted by Finnhub.
+        logicalType: string
+        required: false
+        unique: false
+        classification: public
+        customProperties:
+          - property: pii
+            value: 'False'
+        examples:
+          - https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/RY.TO.png
+
+      - name: api_call_timestamp
+        businessName: API Call Timestamp
+        physicalType: timestamp
+        description: >
+          The UTC timestamp of the bronze API call this record was sourced from.
+          Preserved from the bronze layer for data lineage tracking.
+        logicalType: timestamp
+        required: true
+        unique: false
+        classification: public
+        customProperties:
+          - property: pii
+            value: 'False'
+        relationships:
+          - type: foreignKey
+            to: finnhub_stock_company_profile.api_call_timestamp
+        examples:
+          - '2026-03-17T22:06:06.871+00:00'
+
+team:
+  name: Cavallo Technologies Inc.
+  description: Databricks accelerators and demo data products.
+  tags:
+    - finance
+    - demo
+  customProperties:
+    - property: contactName
+      value: Karly Kussainova
+    - property: contactUrl
+      value: https://cavallotechnologies.ca
+  members:
+    - id: kkussainova_cavallo
+      username: kkussainova_cavallo
+      name: Karly Kussainova
+      role: Senior Data Engineer
+      dateIn: 2026-03-17
+      description: Pipeline developer - Finnhub API integration demo
+
+slaProperties:
+  - property: generalAvailability
+    value: >
+      Data is loaded on-demand by running the ingestion notebook manually
+      or triggering the Databricks job defined in resources/sample_job.job.yml.
+  - property: retention
+    value: P90D
+  - property: latency
+    value: 24
+    unit: h
+  - property: support
+    value: Demo environment - best effort only
