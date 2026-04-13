@@ -1,0 +1,87 @@
+resources:
+  jobs:
+    setup:
+      name: nyc-taxi-job
+      queue:
+        enabled: true
+
+      tasks:
+        - task_key: bronze
+          notebook_task:
+            notebook_path: .././src/bronze_ingestion.ipynb
+            base_parameters: &base_params
+              catalog: ${var.catalog}
+              raw_schema: ${var.raw_schema}
+              volume: ${var.volume}
+              bronze_schema: ${var.bronze_schema}
+              silver_schema: ${var.silver_schema}
+              gold_schema: ${var.gold_schema}
+
+        - task_key: silver_green
+          depends_on:
+            - task_key: bronze
+          notebook_task:
+            notebook_path: .././src/silver_green.ipynb
+            base_parameters: *base_params
+
+        - task_key: silver_yellow
+          depends_on:
+            - task_key: bronze
+          notebook_task:
+            notebook_path: .././src/silver_yellow.ipynb
+            base_parameters: *base_params
+
+        - task_key: silver_trips
+          depends_on:
+            - task_key: silver_yellow
+            - task_key: silver_green
+          notebook_task:
+            notebook_path: .././src/silver_all_trips.py
+            base_parameters: *base_params
+
+        - task_key: silver_zones
+          depends_on:
+            - task_key: bronze
+          notebook_task:
+            notebook_path: .././src/silver_zones.ipynb
+            base_parameters: *base_params
+
+        - task_key: gold_revenue_by_zone
+          depends_on:
+            - task_key: silver_trips
+            - task_key: silver_zones
+          notebook_task:
+            notebook_path: .././src/gold_revenue_by_zone.ipynb
+            base_parameters: *base_params
+
+        - task_key: gold_peak_hours
+          depends_on:
+            - task_key: silver_trips
+          notebook_task:
+            notebook_path: .././src/gold_peak_hours.ipynb
+            base_parameters: *base_params
+
+        - task_key: gold_daily_trends
+          depends_on:
+            - task_key: silver_trips
+          notebook_task:
+            notebook_path: .././src/gold_daily_trends.ipynb
+            base_parameters: *base_params
+
+        - task_key: gold_zone_performance
+          depends_on:
+            - task_key: gold_revenue_by_zone
+            - task_key: gold_peak_hours
+            - task_key: gold_daily_trends
+          notebook_task:
+            notebook_path: .././src/gold_zone_performance.py
+            base_parameters: *base_params
+
+      # email_notifications:
+      #   on_failure:
+      #     - karly.kussainova@gmail.com
+      # trigger:
+      #   # Run this job every day, exactly one day from the last run; see https://docs.databricks.com/api/workspace/jobs/create#trigger
+      #   periodic:
+      #     interval: 1
+      #     unit: DAYS

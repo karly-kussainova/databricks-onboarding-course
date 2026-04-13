@@ -1,4 +1,13 @@
-# NYC
+# nyc-taxi Module 04 - Gold Layer Analytics
+
+This module builds gold layer analytics on top of the silver tables from Module 3. It creates four gold tables that provide business-ready insights into NYC taxi operations.
+
+## Gold Tables
+
+- **revenue_by_zone**: Revenue metrics aggregated by taxi zone and borough
+- **peak_hours**: Trip patterns and revenue metrics by hour of day
+- **daily_trends**: Daily aggregated metrics for time-series analysis
+- **zone_performance_summary**: Ranked performance metrics by zone
 
 ## Getting Started
 

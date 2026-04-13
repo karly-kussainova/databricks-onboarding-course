@@ -1,6 +1,20 @@
 # Databricks Asset Bundle configuration, more info here: https://docs.databricks.com/en/dev-tools/bundles/settings.html
 bundle:
-  name: "NYC"
+  name: "nyc-taxi"
+
+variables:
+  catalog:
+    default: new_york_taxi
+  raw_schema:
+    default: raw
+  volume:
+    default: raw_files
+  bronze_schema:
+    default: bronze
+  silver_schema:
+    default: silver
+  gold_schema:
+    default: gold
 
 include:
   - resources/*.yml
